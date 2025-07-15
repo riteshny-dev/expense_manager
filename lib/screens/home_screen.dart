@@ -17,6 +17,7 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
+
 class _HomeScreenState extends State<HomeScreen> {
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
@@ -29,26 +30,37 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isEditingBudget = false;
 
   final List<String> _categories = [
-    'General',
-    'Food',
-    'Travel',
-    'Shopping',
-    'Bills',
-    'EMIs',
-    'Savings',
-    'Others',
+    'General', 'Food', 'Travel', 'Shopping', 'Bills', 'EMIs', 'Savings', 'Others',
   ];
 
-  void _clearForm() {
-    _titleController.clear();
-    _amountController.clear();
-    _selectedDate = null;
-    _selectedCategory = 'General';
+  @override
+  void initState() {
+    super.initState();
+    _loadBudget();
+  }
+
+  String get _budgetKey {
+    final now = DateTime.now();
+    final month = widget.selectedMonth ?? now.month;
+    final year = widget.selectedYear ?? now.year;
+    return 'budget_${year}_${month.toString().padLeft(2, '0')}';
+  }
+
+  void _loadBudget() {
+    final settingsBox = Hive.box('settings');
+    final value = settingsBox.get(_budgetKey, defaultValue: 0.0);
+    setState(() {
+      _allocatedAmount = value;
+      _isBudgetSet = _allocatedAmount > 0;
+      _allocatedController.text = value > 0 ? value.toString() : '';
+    });
   }
 
   void _setBudget() {
     final value = double.tryParse(_allocatedController.text);
     if (value != null) {
+      final settingsBox = Hive.box('settings');
+      settingsBox.put(_budgetKey, value);
       setState(() {
         _allocatedAmount = value;
         _isBudgetSet = true;
@@ -83,6 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               child: const Text('Confirm'),
               onPressed: () {
+                final settingsBox = Hive.box('settings');
+                settingsBox.put(_budgetKey, value);
                 setState(() {
                   _allocatedAmount = value;
                   _isEditingBudget = false;
@@ -97,6 +111,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+  }
+
+  void _clearForm() {
+    _titleController.clear();
+    _amountController.clear();
+    _selectedDate = null;
+    _selectedCategory = 'General';
   }
 
   Map<String, double> _calculateCategoryTotals(List<Expense> expenses) {
@@ -116,14 +137,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final total = data.values.fold(0.0, (sum, val) => sum + val);
 
     final List<Color> colors = [
-      Colors.blue,
-      Colors.red,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.brown,
-      Colors.pink,
+      Colors.blue, Colors.red, Colors.green, Colors.orange,
+      Colors.purple, Colors.teal, Colors.brown, Colors.pink,
     ];
 
     int colorIndex = 0;
@@ -141,6 +156,30 @@ class _HomeScreenState extends State<HomeScreen> {
         titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
       );
     }).toList();
+  }
+
+  void _submitData() {
+    final title = _titleController.text;
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    if (title.isEmpty || amount <= 0 || _selectedDate == null) return;
+
+    final newExpense = Expense(
+      title: title,
+      amount: amount,
+      date: _selectedDate!,
+      category: _selectedCategory,
+    );
+
+    Hive.box<Expense>('expenses').add(newExpense);
+
+    _clearForm();
+    Navigator.of(context).pop();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Expense added successfully!')),
+    );
+
+    setState(() {});
   }
 
   void _openAddExpenseSheet() {
@@ -161,15 +200,8 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Add New Expense', style: Theme.of(context).textTheme.titleLarge),
-                TextField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Title *'),
-                ),
-                TextField(
-                  controller: _amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Amount *'),
-                ),
+                TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Title *')),
+                TextField(controller: _amountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount *')),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -211,18 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: () {
-                    if (_titleController.text.isEmpty ||
-                        _amountController.text.isEmpty ||
-                        double.tryParse(_amountController.text) == null ||
-                        _selectedDate == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please fill all the fields correctly.')),
-                      );
-                      return;
-                    }
-                    _submitData();
-                  },
+                  onPressed: _submitData,
                   child: const Text('Add Expense'),
                 )
               ],
@@ -233,208 +254,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _submitData() {
-    final title = _titleController.text;
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    if (title.isEmpty || amount <= 0 || _selectedDate == null) return;
-
-    final newExpense = Expense(
-      title: title,
-      amount: amount,
-      date: _selectedDate!,
-      category: _selectedCategory,
-    );
-
-    final expenseBox = Hive.box<Expense>('expenses');
-    expenseBox.add(newExpense);
-
-    _clearForm();
-    Navigator.of(context).pop();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Expense added successfully!')),
-    );
-
-    setState(() {});
-  }
-
-  void _editExpense(int index) {
-    final title = _titleController.text;
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    if (title.isEmpty || amount <= 0 || _selectedDate == null) return;
-
-    final updatedExpense = Expense(
-      title: title,
-      amount: amount,
-      date: _selectedDate!,
-      category: _selectedCategory,
-    );
-
-    final expenseBox = Hive.box<Expense>('expenses');
-    expenseBox.putAt(index, updatedExpense);
-
-    _clearForm();
-    Navigator.of(context).pop();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Expense updated successfully!')),
-    );
-
-    setState(() {});
-  }
-
-  void _openEditExpenseSheet(Expense expense, int index) {
-    _titleController.text = expense.title;
-    _amountController.text = expense.amount.toString();
-    _selectedDate = expense.date;
-    _selectedCategory = expense.category;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Edit Expense', style: Theme.of(context).textTheme.titleLarge),
-                TextField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Title *'),
-                ),
-                TextField(
-                  controller: _amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Amount *'),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _selectedDate == null
-                            ? 'No Date Chosen! *'
-                            : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        final now = DateTime.now();
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: now,
-                          firstDate: DateTime(now.year - 1),
-                          lastDate: now,
-                        );
-                        if (picked != null) {
-                          setModalState(() {
-                            _selectedDate = picked;
-                          });
-                        }
-                      },
-                      child: const Text('Choose Date'),
-                    ),
-                  ],
-                ),
-                DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  items: _categories
-                      .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) setModalState(() => _selectedCategory = value);
-                  },
-                  decoration: const InputDecoration(labelText: 'Category *'),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_titleController.text.isEmpty ||
-                        _amountController.text.isEmpty ||
-                        double.tryParse(_amountController.text) == null ||
-                        _selectedDate == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please fill all the fields correctly.')),
-                      );
-                      return;
-                    }
-                    _editExpense(index);
-                  },
-                  child: const Text('Save Changes'),
-                )
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _confirmDeleteExpense(int index) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Expense'),
-        content: const Text('Are you sure you want to delete this expense?'),
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-          TextButton(
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-            onPressed: () {
-              final expenseBox = Hive.box<Expense>('expenses');
-              expenseBox.deleteAt(index);
-              Navigator.of(ctx).pop();
-              setState(() {});
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Expense deleted')),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final expenseBox = Hive.box<Expense>('expenses');
     final allExpenses = expenseBox.values.toList().reversed.toList();
     final expenses = widget.selectedMonth != null && widget.selectedYear != null
-    ? allExpenses.where((e) =>
-        e.date.month == widget.selectedMonth && e.date.year == widget.selectedYear).toList()
-    : allExpenses;
+        ? allExpenses.where((e) =>
+            e.date.month == widget.selectedMonth &&
+            e.date.year == widget.selectedYear).toList()
+        : allExpenses;
+
     final total = expenses.fold(0.0, (sum, item) => sum + item.amount);
     final remaining = _allocatedAmount - total;
 
     return Scaffold(
-    appBar: AppBar(
-       leading: IconButton(
-    icon: const Icon(Icons.arrow_back),
-    onPressed: () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-      );
-      },
-     ),
-     title: const Text('Expense Manager'),
-     actions: [
-     IconButton(
-      icon: const Icon(Icons.add),
-      onPressed: _openAddExpenseSheet,
-     ),
-     ],
-    ),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+            );
+          },
+        ),
+        title: const Text('Expense Manager'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: _openAddExpenseSheet,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -442,36 +293,30 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _allocatedController,
-                    keyboardType: TextInputType.number,
-                    enabled: !_isBudgetSet || _isEditingBudget,
-                    decoration: const InputDecoration(
-                      labelText: 'Monthly Budget *',
+                  child: SizedBox(
+                    height: 60,
+                    child: TextField(
+                      controller: _allocatedController,
+                      keyboardType: TextInputType.number,
+                      enabled: !_isBudgetSet || _isEditingBudget,
+                      style: const TextStyle(fontSize: 18),
+                      decoration: InputDecoration(
+                        labelText: 'Monthly Budget *',
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: !_isBudgetSet ? _setBudget : null,
-                  child: const Text('Set'),
-                ),
+                ElevatedButton(onPressed: !_isBudgetSet ? _setBudget : null, child: const Text('Set')),
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _isBudgetSet && !_isEditingBudget ? _editBudgetPrompt : null,
-                  child: const Text('Edit'),
-                ),
+                ElevatedButton(onPressed: _isBudgetSet && !_isEditingBudget ? _editBudgetPrompt : null, child: const Text('Edit')),
                 if (_isEditingBudget) ...[
                   const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _confirmEditBudget,
-                    child: const Text('Save'),
-                  ),
+                  ElevatedButton(onPressed: _confirmEditBudget, child: const Text('Save')),
                   const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () => setState(() => _isEditingBudget = false),
-                    child: const Text('Cancel'),
-                  ),
+                  ElevatedButton(onPressed: () => setState(() => _isEditingBudget = false), child: const Text('Cancel')),
                 ]
               ],
             ),
@@ -486,10 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Expenses by Category',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                      const Text('Expenses by Category', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 16),
                       Expanded(
                         child: PieChart(
@@ -515,22 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return Card(
                         child: ListTile(
                           title: Text(expense.title),
-                          subtitle: Text(
-                            '${expense.category} • ₹${expense.amount.toStringAsFixed(2)}',
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.orange),
-                                onPressed: () => _openEditExpenseSheet(expense, i),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _confirmDeleteExpense(i),
-                              ),
-                            ],
-                          ),
+                          subtitle: Text('${expense.category} • ₹${expense.amount.toStringAsFixed(2)}'),
                         ),
                       );
                     },
@@ -544,24 +371,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Total Expense:',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
-                    ),
-                    Text(
-                      '₹${total.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
-                    ),
+                    const Text('Total Expense:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+                    Text('₹${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Remaining Budget:',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
-                    ),
+                    const Text('Remaining Budget:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
                     Text(
                       '₹${remaining.toStringAsFixed(2)}',
                       style: TextStyle(

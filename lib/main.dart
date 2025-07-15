@@ -9,7 +9,10 @@ void main() async {
 
   await Hive.initFlutter();
   Hive.registerAdapter(ExpenseAdapter());
+
+  // Open boxes for expenses and settings (budget storage)
   await Hive.openBox<Expense>('expenses');
+  await Hive.openBox('settings'); // ✅ Added this line
 
   runApp(const MyApp());
 }
@@ -64,7 +67,7 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
       ),
-      home: const WelcomeScreen(), // ✅ Corrected
+      home: const WelcomeScreen(),
     );
   }
 }

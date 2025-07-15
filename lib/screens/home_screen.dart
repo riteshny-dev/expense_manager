@@ -27,7 +27,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   double _allocatedAmount = 0.0;
   bool _isBudgetSet = false;
-  bool _isEditingBudget = false;
 
   final List<String> _categories = [
     'General', 'Food', 'Travel', 'Shopping', 'Bills', 'EMIs', 'Savings', 'Others',
@@ -64,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _allocatedAmount = value;
         _isBudgetSet = true;
-        _isEditingBudget = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Monthly budget set.')),
@@ -72,45 +70,49 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _editBudgetPrompt() {
-    setState(() {
-      _allocatedController.text = _allocatedAmount.toString();
-      _isEditingBudget = true;
-    });
-  }
-
-  void _confirmEditBudget() {
-    final value = double.tryParse(_allocatedController.text);
-    if (value != null) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Edit Budget'),
-          content: const Text('Are you sure you want to update the monthly budget?'),
+  void _showEditBudgetDialog() {
+    _allocatedController.text = _allocatedAmount.toString();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit Monthly Budget'),
+          content: TextField(
+            controller: _allocatedController,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'New Budget *',
+              border: OutlineInputBorder(),
+            ),
+          ),
           actions: [
             TextButton(
-              child: const Text('Cancel'),
               onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
             ),
             TextButton(
-              child: const Text('Confirm'),
               onPressed: () {
-                final settingsBox = Hive.box('settings');
-                settingsBox.put(_budgetKey, value);
-                setState(() {
-                  _allocatedAmount = value;
-                  _isEditingBudget = false;
-                });
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Monthly budget updated.')),
-                );
+                final value = double.tryParse(_allocatedController.text);
+                if (value != null) {
+                  final settingsBox = Hive.box('settings');
+                  settingsBox.put(_budgetKey, value);
+                  setState(() {
+                    _allocatedAmount = value;
+                    _isBudgetSet = true;
+                  });
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Monthly budget updated.')),
+                  );
+                }
               },
+              child: const Text('Save'),
             ),
           ],
-        ),
-      );
-    }
+        );
+      },
+    );
   }
 
   void _clearForm() {
@@ -298,12 +300,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: TextField(
                       controller: _allocatedController,
                       keyboardType: TextInputType.number,
-                      enabled: !_isBudgetSet || _isEditingBudget,
+                      enabled: !_isBudgetSet,
                       style: const TextStyle(fontSize: 18),
                       decoration: InputDecoration(
                         labelText: 'Monthly Budget *',
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -311,13 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 8),
                 ElevatedButton(onPressed: !_isBudgetSet ? _setBudget : null, child: const Text('Set')),
                 const SizedBox(width: 8),
-                ElevatedButton(onPressed: _isBudgetSet && !_isEditingBudget ? _editBudgetPrompt : null, child: const Text('Edit')),
-                if (_isEditingBudget) ...[
-                  const SizedBox(width: 8),
-                  ElevatedButton(onPressed: _confirmEditBudget, child: const Text('Save')),
-                  const SizedBox(width: 8),
-                  ElevatedButton(onPressed: () => setState(() => _isEditingBudget = false), child: const Text('Cancel')),
-                ]
+                ElevatedButton(onPressed: _isBudgetSet ? _showEditBudgetDialog : null, child: const Text('Edit')),
               ],
             ),
           ),

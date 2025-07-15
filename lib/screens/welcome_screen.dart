@@ -192,21 +192,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Get Started'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  );
-                },
-              ),
             ],
           ),
         ),

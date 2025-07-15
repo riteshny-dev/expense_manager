@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   double _allocatedAmount = 0.0;
   bool _isBudgetSet = false;
+  bool _isEditingBudget = false;
 
   final List<String> _categories = [
     'General', 'Food', 'Travel', 'Shopping', 'Bills', 'EMIs', 'Savings', 'Others',
@@ -55,6 +56,18 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: '✕',
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
+
   void _setBudget() {
     final value = double.tryParse(_allocatedController.text);
     if (value != null) {
@@ -63,55 +76,55 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _allocatedAmount = value;
         _isBudgetSet = true;
+        _isEditingBudget = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Monthly budget set.')),
-      );
+      _showSnackbar('Monthly budget set.');
     }
   }
 
-  void _showEditBudgetDialog() {
-    _allocatedController.text = _allocatedAmount.toString();
+  void _editBudgetPrompt() {
     showDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Edit Monthly Budget'),
-          content: TextField(
-            controller: _allocatedController,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'New Budget *',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
+      builder: (ctx) => AlertDialog(
+        titlePadding: const EdgeInsets.only(top: 16, left: 24, right: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Edit Monthly Budget'),
+            IconButton(
+              icon: const Icon(Icons.close),
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final value = double.tryParse(_allocatedController.text);
-                if (value != null) {
-                  final settingsBox = Hive.box('settings');
-                  settingsBox.put(_budgetKey, value);
-                  setState(() {
-                    _allocatedAmount = value;
-                    _isBudgetSet = true;
-                  });
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Monthly budget updated.')),
-                  );
-                }
-              },
-              child: const Text('Save'),
             ),
           ],
-        );
-      },
+        ),
+        content: TextField(
+          controller: _allocatedController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Enter new budget'),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          TextButton(
+            child: const Text('Save'),
+            onPressed: () {
+              final value = double.tryParse(_allocatedController.text);
+              if (value != null) {
+                final settingsBox = Hive.box('settings');
+                settingsBox.put(_budgetKey, value);
+                setState(() {
+                  _allocatedAmount = value;
+                });
+                Navigator.of(ctx).pop();
+                _showSnackbar('Monthly budget updated.');
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -177,9 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _clearForm();
     Navigator.of(context).pop();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Expense added successfully!')),
-    );
+    _showSnackbar('Expense added successfully!');
 
     setState(() {});
   }
@@ -201,7 +212,16 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Add New Expense', style: Theme.of(context).textTheme.titleLarge),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Add New Expense', style: Theme.of(context).textTheme.titleLarge),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    )
+                  ],
+                ),
                 TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Title *')),
                 TextField(controller: _amountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount *')),
                 const SizedBox(height: 10),
@@ -315,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 8),
                 ElevatedButton(onPressed: !_isBudgetSet ? _setBudget : null, child: const Text('Set')),
                 const SizedBox(width: 8),
-                ElevatedButton(onPressed: _isBudgetSet ? _showEditBudgetDialog : null, child: const Text('Edit')),
+                ElevatedButton(onPressed: _isBudgetSet ? _editBudgetPrompt : null, child: const Text('Edit')),
               ],
             ),
           ),

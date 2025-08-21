@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isEditingBudget = false;
 
   final List<String> _categories = [
-    'General', 'Food', 'Travel', 'Shopping', 'Bills', 'EMIs', 'Savings', 'Others',
+    'General', 'Food', 'Medical', 'Travel', 'Shopping', 'Bills', 'EMIs', 'Savings', 'Others',
   ];
 
   @override
@@ -276,6 +276,138 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // EDIT FEATURE: Open Edit Expense Sheet
+  void _openEditExpenseSheet(Expense expense, int index) {
+    _titleController.text = expense.title;
+    _amountController.text = expense.amount.toString();
+    _selectedDate = expense.date;
+    _selectedCategory = expense.category;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Edit Expense', style: Theme.of(context).textTheme.titleLarge),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    )
+                  ],
+                ),
+                TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Title *')),
+                TextField(controller: _amountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount *')),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _selectedDate == null
+                            ? 'No Date Chosen! *'
+                            : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final now = DateTime.now();
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate ?? now,
+                          firstDate: DateTime(now.year - 1),
+                          lastDate: now,
+                        );
+                        if (picked != null) {
+                          setModalState(() {
+                            _selectedDate = picked;
+                          });
+                        }
+                      },
+                      child: const Text('Choose Date'),
+                    ),
+                  ],
+                ),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  items: _categories
+                      .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setModalState(() => _selectedCategory = value);
+                  },
+                  decoration: const InputDecoration(labelText: 'Category *'),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    final title = _titleController.text;
+                    final amount = double.tryParse(_amountController.text) ?? 0;
+                    if (title.isEmpty || amount <= 0 || _selectedDate == null) return;
+
+                    final updatedExpense = Expense(
+                      title: title,
+                      amount: amount,
+                      date: _selectedDate!,
+                      category: _selectedCategory,
+                    );
+
+                    final expenseBox = Hive.box<Expense>('expenses');
+                    expenseBox.putAt(index, updatedExpense);
+
+                    _clearForm();
+                    Navigator.of(context).pop();
+                    _showSnackbar('Expense updated successfully!');
+                    setState(() {});
+                  },
+                  child: const Text('Save Changes'),
+                )
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // DELETE FEATURE: Delete Expense with confirmation
+  void _deleteExpense(int index) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Expense'),
+        content: const Text('Are you sure you want to delete this expense?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      final expenseBox = Hive.box<Expense>('expenses');
+      expenseBox.deleteAt(index);
+      _showSnackbar('Expense deleted!');
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final expenseBox = Hive.box<Expense>('expenses');
@@ -288,6 +420,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final total = expenses.fold(0.0, (sum, item) => sum + item.amount);
     final remaining = _allocatedAmount - total;
+
+    final now = DateTime.now();
 
     return Scaffold(
       appBar: AppBar(
@@ -372,10 +506,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemCount: expenses.length,
                     itemBuilder: (ctx, i) {
                       final expense = expenses[i];
+                      final isCurrentMonth = expense.date.month == now.month && expense.date.year == now.year;
                       return Card(
                         child: ListTile(
                           title: Text(expense.title),
                           subtitle: Text('${expense.category} • ₹${expense.amount.toStringAsFixed(2)}'),
+                          trailing: isCurrentMonth
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit),
+                                      onPressed: () => _openEditExpenseSheet(expense, expenseBox.length - 1 - i),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _deleteExpense(expenseBox.length - 1 - i),
+                                    ),
+                                  ],
+                                )
+                              : null,
                         ),
                       );
                     },

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models/expense.dart';
-import 'screens/home_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'models/receivable_payable.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,9 +13,22 @@ void main() async {
 
   // Open boxes for expenses and settings (budget storage)
   await Hive.openBox<Expense>('expenses');
-  await Hive.openBox('settings'); // ✅ Added this line
+  await Hive.openBox('settings');
+
+  Hive.registerAdapter(ReceivablePayableAdapter());
+  await Hive.openBox<ReceivablePayable>('receivables_payables');
+
+  // Ask for storage permission at startup (install/update)
+  await _requestStoragePermission();
 
   runApp(const MyApp());
+}
+
+Future<void> _requestStoragePermission() async {
+  final status = await Permission.storage.status;
+  if (!status.isGranted) {
+    await Permission.storage.request();
+  }
 }
 
 class MyApp extends StatelessWidget {

@@ -6,9 +6,10 @@ import 'package:pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
-
 import '../models/expense.dart';
+import '../models/receivable_payable.dart';
 import 'home_screen.dart';
+import 'receivable_payable_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -116,7 +117,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }).toList();
   }
 
-  Widget _buildReceivablePayableSection(double screenWidth, double screenHeight, Color cardColor, Color borderColor, TextStyle? titleStyle, TextStyle? valueStyle) {
+  Widget _buildReceivablePayableSection(
+    double screenWidth,
+    double screenHeight,
+    Color cardColor,
+    Color borderColor,
+    TextStyle? titleStyle,
+    TextStyle? valueStyle,
+    double receivable,
+    double payable,
+  ) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02, vertical: screenHeight * 0.012),
       child: Container(
@@ -141,7 +151,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Total Receivable', style: valueStyle),
-                  Text('₹ 0.00', style: valueStyle?.copyWith(fontWeight: FontWeight.w600)),
+                  Text('₹ ${receivable.toStringAsFixed(2)}', style: valueStyle?.copyWith(fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -151,7 +161,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Total Payable', style: valueStyle),
-                  Text('₹ 0.00', style: valueStyle?.copyWith(fontWeight: FontWeight.w600)),
+                  Text('₹ ${payable.toStringAsFixed(2)}', style: valueStyle?.copyWith(fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -222,6 +232,23 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
   }
 
+  Map<String, double> _getReceivablePayableTotals() {
+    final box = Hive.box<ReceivablePayable>('receivables_payables');
+    double receivable = 0;
+    double payable = 0;
+    for (final item in box.values) {
+      if (item.isReceivable) {
+        receivable += item.amount;
+      } else {
+        payable += item.amount;
+      }
+    }
+    return {
+      'receivable': receivable,
+      'payable': payable,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -254,6 +281,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       fontSize: screenWidth * 0.042,
       color: textColor,
     );
+
+    final totals = _getReceivablePayableTotals();
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -494,7 +523,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   },
                 ),
                 SizedBox(height: screenHeight * 0.02),
-                _buildReceivablePayableSection(screenWidth, screenHeight, cardColor, borderColor, titleStyle, valueStyle),
+                GestureDetector(
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ReceivablePayableScreen()),
+                    );
+                    setState(() {}); // Refresh totals after returning
+                  },
+                  child: _buildReceivablePayableSection(
+                    screenWidth,
+                    screenHeight,
+                    cardColor,
+                    borderColor,
+                    titleStyle,
+                    valueStyle,
+                    totals['receivable'] ?? 0,
+                    totals['payable'] ?? 0,
+                  ),
+                ),
                 SizedBox(height: screenHeight * 0.02),
               ],
             ),

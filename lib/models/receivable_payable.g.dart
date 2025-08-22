@@ -20,19 +20,28 @@ class ReceivablePayableAdapter extends TypeAdapter<ReceivablePayable> {
       name: fields[0] as String,
       amount: fields[1] as double,
       isReceivable: fields[2] as bool,
+      fromWhom: fields[3] as String?,
+      date: fields[4] as DateTime?,
+      paymentMode: fields[5] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ReceivablePayable obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
       ..write(obj.amount)
       ..writeByte(2)
-      ..write(obj.isReceivable);
+      ..write(obj.isReceivable)
+      ..writeByte(3)
+      ..write(obj.fromWhom)
+      ..writeByte(4)
+      ..write(obj.date)
+      ..writeByte(5)
+      ..write(obj.paymentMode);
   }
 
   @override

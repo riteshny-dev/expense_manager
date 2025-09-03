@@ -27,7 +27,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   double _allocatedAmount = 0.0;
   bool _isBudgetSet = false;
-  bool _isEditingBudget = false;
 
   final List<String> _categories = [
     'General', 'Food', 'Medical', 'Travel', 'Shopping', 'Bills', 'EMIs', 'Savings', 'Others',
@@ -76,54 +75,62 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _allocatedAmount = value;
         _isBudgetSet = true;
-        _isEditingBudget = false;
       });
       _showSnackbar('Monthly budget set.');
     }
   }
 
   void _editBudgetPrompt() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        titlePadding: const EdgeInsets.only(top: 16, left: 24, right: 8),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Edit Monthly Budget'),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(ctx).pop(),
+            Text('Edit Monthly Budget', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _allocatedController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Enter new budget', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+                ElevatedButton(
+                  child: const Text('Save'),
+                  onPressed: () {
+                    final value = double.tryParse(_allocatedController.text);
+                    if (value != null) {
+                      final settingsBox = Hive.box('settings');
+                      settingsBox.put(_budgetKey, value);
+                      setState(() {
+                        _allocatedAmount = value;
+                      });
+                      Navigator.of(ctx).pop();
+                      _showSnackbar('Monthly budget updated.');
+                    }
+                  },
+                ),
+              ],
             ),
           ],
         ),
-        content: TextField(
-          controller: _allocatedController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Enter new budget'),
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-          TextButton(
-            child: const Text('Save'),
-            onPressed: () {
-              final value = double.tryParse(_allocatedController.text);
-              if (value != null) {
-                final settingsBox = Hive.box('settings');
-                settingsBox.put(_budgetKey, value);
-                setState(() {
-                  _allocatedAmount = value;
-                });
-                Navigator.of(ctx).pop();
-                _showSnackbar('Monthly budget updated.');
-              }
-            },
-          ),
-        ],
       ),
     );
   }
@@ -200,83 +207,101 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Add New Expense', style: Theme.of(context).textTheme.titleLarge),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    )
-                  ],
-                ),
-                TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Title *')),
-                TextField(controller: _amountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount *')),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _selectedDate == null
-                            ? 'No Date Chosen! *'
-                            : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
-                      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Add New Expense', style: Theme.of(context).textTheme.titleLarge),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  )
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: 'Title *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Amount *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _selectedDate == null
+                          ? 'No Date Chosen! *'
+                          : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
                     ),
-                    TextButton(
-                      onPressed: () async {
-                        final now = DateTime.now();
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: now,
-                          firstDate: DateTime(now.year - 1),
-                          lastDate: now,
-                        );
-                        if (picked != null) {
-                          setModalState(() {
-                            _selectedDate = picked;
-                          });
-                        }
-                      },
-                      child: const Text('Choose Date'),
-                    ),
-                  ],
-                ),
-                DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  items: _categories
-                      .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) setModalState(() => _selectedCategory = value);
-                  },
-                  decoration: const InputDecoration(labelText: 'Category *'),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: now,
+                        firstDate: DateTime(now.year - 1),
+                        lastDate: now,
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          _selectedDate = picked;
+                        });
+                      }
+                    },
+                    child: const Text('Choose Date'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                items: _categories
+                    .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _selectedCategory = value);
+                },
+                decoration: const InputDecoration(labelText: 'Category *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
                   onPressed: _submitData,
                   child: const Text('Add Expense'),
-                )
-              ],
-            ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // EDIT FEATURE: Open Edit Expense Sheet
   void _openEditExpenseSheet(Expense expense, int index) {
     _titleController.text = expense.title;
     _amountController.text = expense.amount.toString();
@@ -286,71 +311,86 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Edit Expense', style: Theme.of(context).textTheme.titleLarge),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    )
-                  ],
-                ),
-                TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Title *')),
-                TextField(controller: _amountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount *')),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _selectedDate == null
-                            ? 'No Date Chosen! *'
-                            : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
-                      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Edit Expense', style: Theme.of(context).textTheme.titleLarge),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  )
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: 'Title *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Amount *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _selectedDate == null
+                          ? 'No Date Chosen! *'
+                          : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
                     ),
-                    TextButton(
-                      onPressed: () async {
-                        final now = DateTime.now();
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _selectedDate ?? now,
-                          firstDate: DateTime(now.year - 1),
-                          lastDate: now,
-                        );
-                        if (picked != null) {
-                          setModalState(() {
-                            _selectedDate = picked;
-                          });
-                        }
-                      },
-                      child: const Text('Choose Date'),
-                    ),
-                  ],
-                ),
-                DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  items: _categories
-                      .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) setModalState(() => _selectedCategory = value);
-                  },
-                  decoration: const InputDecoration(labelText: 'Category *'),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _selectedDate ?? now,
+                        firstDate: DateTime(now.year - 1),
+                        lastDate: now,
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          _selectedDate = picked;
+                        });
+                      }
+                    },
+                    child: const Text('Choose Date'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                items: _categories
+                    .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _selectedCategory = value);
+                },
+                decoration: const InputDecoration(labelText: 'Category *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
                   onPressed: () {
                     final title = _titleController.text;
                     final amount = double.tryParse(_amountController.text) ?? 0;
@@ -372,16 +412,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     setState(() {});
                   },
                   child: const Text('Save Changes'),
-                )
-              ],
-            ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // DELETE FEATURE: Delete Expense with confirmation
   void _deleteExpense(int index) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -441,6 +484,9 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _openAddExpenseSheet,
           ),
         ],
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        elevation: 1,
       ),
       body: Column(
         children: [
@@ -467,9 +513,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(onPressed: !_isBudgetSet ? _setBudget : null, child: const Text('Set')),
+                ElevatedButton(
+                  onPressed: !_isBudgetSet ? _setBudget : null,
+                  child: const Text('Set'),
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                ElevatedButton(onPressed: _isBudgetSet ? _editBudgetPrompt : null, child: const Text('Edit')),
+                ElevatedButton(
+                  onPressed: _isBudgetSet ? _editBudgetPrompt : null,
+                  child: const Text('Edit'),
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
               ],
             ),
           ),
@@ -478,6 +536,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 250,
               child: Card(
                 margin: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
                   child: Column(
@@ -502,18 +561,22 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: expenses.isEmpty
                 ? const Center(child: Text('No expenses added yet.'))
-                : ListView.builder(
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     itemCount: expenses.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (ctx, i) {
                       final expense = expenses[i];
                       final isCurrentMonth = expense.date.month == now.month && expense.date.year == now.year;
                       return Card(
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         child: ListTile(
-                          title: Text(expense.title),
+                          title: Text(expense.title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                           subtitle: Text('${expense.category} • ₹${expense.amount.toStringAsFixed(2)}'),
                           trailing: isCurrentMonth
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              ? Wrap(
+                                  spacing: 0,
                                   children: [
                                     IconButton(
                                       icon: const Icon(Icons.edit),
@@ -563,6 +626,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      backgroundColor: Theme.of(context).colorScheme.background,
     );
   }
 }

@@ -10,6 +10,7 @@ import '../models/expense.dart';
 import '../models/receivable_payable.dart';
 import 'home_screen.dart';
 import 'receivable_payable_screen.dart';
+import 'tomorrow_screen.dart'; // <-- Make sure this import exists
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -72,9 +73,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           color: color,
           value: entry.value,
           title: '${entry.key}\n${percentage.toStringAsFixed(1)}%',
-          radius: 40,
+          radius: 48,
           titleStyle: const TextStyle(
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -132,7 +133,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: cardColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: borderColor),
         ),
         child: Column(
@@ -220,7 +221,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final file = File("${dir!.path}/expense_report_$_selectedYear.pdf");
     await file.writeAsBytes(await pdf.save());
 
-    // Share the file
     Share.shareXFiles([XFile(file.path)], text: 'Expense Report $_selectedYear');
 
     if (mounted) {
@@ -266,7 +266,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       'September', 'October', 'November', 'December',
     ];
 
-    // Theme-aware colors and styles
     final backgroundColor = colorScheme.background;
     final cardColor = colorScheme.surface;
     final borderColor = colorScheme.primary.withOpacity(0.3);
@@ -523,6 +522,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   },
                 ),
                 SizedBox(height: screenHeight * 0.02),
+
+                // ---- Receivable & Payable Section ----
                 GestureDetector(
                   onTap: () async {
                     await Navigator.push(
@@ -542,6 +543,36 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     totals['payable'] ?? 0,
                   ),
                 ),
+
+                // ---- Tomorrow's Plan Button ----
+                SizedBox(height: screenHeight * 0.02),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TomorrowScreen()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.08,
+                      vertical: screenHeight * 0.015,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    "Tomorrow's Plan",
+                    style: TextStyle(
+                      fontSize: screenWidth * 0.045,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+
                 SizedBox(height: screenHeight * 0.02),
               ],
             ),

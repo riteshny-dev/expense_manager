@@ -3,20 +3,24 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'models/expense.dart';
 import 'screens/welcome_screen.dart';
 import 'models/receivable_payable.dart';
+import 'models/tomorrow_task.dart'; // ✅ Import new TomorrowTask model
 import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
-  Hive.registerAdapter(ExpenseAdapter());
 
-  // Open boxes for expenses and settings (budget storage)
+  // Register adapters
+  Hive.registerAdapter(ExpenseAdapter());
+  Hive.registerAdapter(ReceivablePayableAdapter());
+  Hive.registerAdapter(TomorrowTaskAdapter()); // ✅ New adapter for TomorrowTask
+
+  // Open boxes
   await Hive.openBox<Expense>('expenses');
   await Hive.openBox('settings');
-
-  Hive.registerAdapter(ReceivablePayableAdapter());
   await Hive.openBox<ReceivablePayable>('receivables_payables');
+  await Hive.openBox<TomorrowTask>('tomorrow_tasks'); // ✅ New box for Tomorrow Planner
 
   // Ask for storage permission at startup (install/update)
   await _requestStoragePermission();
@@ -82,6 +86,12 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: const WelcomeScreen(),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+          child: child!,
+        );
+      },
     );
   }
 }

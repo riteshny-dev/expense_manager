@@ -18,24 +18,43 @@ void main() async {
   await Hive.initFlutter();
   final encryptionKey = await SecureStorageService.getEncryptionKey();
 
-  // Register adapters
-  Hive.registerAdapter(ExpenseAdapter());
-  Hive.registerAdapter(ReceivablePayableAdapter());
-  Hive.registerAdapter(TomorrowTaskAdapter());
+  // Register adapters with version checking
+  if (!Hive.isAdapterRegistered(0)) {
+    Hive.registerAdapter(ExpenseAdapter());
+  }
+  if (!Hive.isAdapterRegistered(1)) {
+    Hive.registerAdapter(ReceivablePayableAdapter());
+  }
+  if (!Hive.isAdapterRegistered(3)) {
+    Hive.registerAdapter(TomorrowTaskAdapter());
+  }
 
-  // Open encrypted boxes
+  // Open encrypted boxes with migration handling
+  final settingsBox = await Hive.openBox(
+    'settings',
+    encryptionCipher: HiveAesCipher(encryptionKey),
+  );
+
+  // Check and set database version
+  const currentVersion = 1; // Increment this when making breaking changes
+  final storedVersion = settingsBox.get('db_version', defaultValue: 0);
+
+  if (storedVersion < currentVersion) {
+    // Perform any necessary migrations here
+    await settingsBox.put('db_version', currentVersion);
+  }
+
+  // Open other boxes with encryption
   await Hive.openBox<Expense>(
     'expenses',
     encryptionCipher: HiveAesCipher(encryptionKey),
   );
-  await Hive.openBox(
-    'settings',
-    encryptionCipher: HiveAesCipher(encryptionKey),
-  );
+  
   await Hive.openBox<ReceivablePayable>(
     'receivables_payables',
     encryptionCipher: HiveAesCipher(encryptionKey),
   );
+  
   await Hive.openBox<TomorrowTask>(
     'tomorrow_tasks',
     encryptionCipher: HiveAesCipher(encryptionKey),

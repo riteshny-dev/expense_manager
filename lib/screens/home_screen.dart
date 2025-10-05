@@ -27,6 +27,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   double _allocatedAmount = 0.0;
   bool _isBudgetSet = false;
+  bool _showPieChart = false;
+  int? _touchedBarIndex;
 
   final List<String> _categories = [
     'General', 'Food', 'Medical', 'Travel', 'Shopping', 'Bills', 'EMIs', 'Savings', 'Others',
@@ -176,6 +178,34 @@ class _HomeScreenState extends State<HomeScreen> {
         title: '${percentage.toStringAsFixed(1)}%',
         radius: 50,
         titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+      );
+    }).toList();
+  }
+
+  List<BarChartGroupData> _getBarChartGroups(List<Expense> expenses) {
+    final data = _calculateCategoryTotals(expenses);
+    final List<Color> colors = [
+      Colors.blue, Colors.red, Colors.green, Colors.orange,
+      Colors.purple, Colors.teal, Colors.brown, Colors.pink,
+    ];
+    int colorIndex = 0;
+    int x = 0;
+
+    return data.entries.map((entry) {
+      final color = colors[colorIndex % colors.length];
+      colorIndex++;
+      return BarChartGroupData(
+        x: x++,
+        barRods: [
+          BarChartRodData(
+            toY: entry.value,
+            color: color,
+            width: 18,
+            borderRadius: BorderRadius.circular(6),
+            rodStackItems: [],
+          ),
+        ],
+        showingTooltipIndicators: [0],
       );
     }).toList();
   }
@@ -542,16 +572,133 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Expenses by Category', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Expenses by Category', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          IconButton(
+                            icon: Icon(
+                              _showPieChart ? Icons.pie_chart : Icons.bar_chart,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            tooltip: _showPieChart ? 'Show Bar Chart' : 'Show Pie Chart',
+                            onPressed: () {
+                              setState(() {
+                                _showPieChart = !_showPieChart;
+                                _touchedBarIndex = null;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
                       Expanded(
-                        child: PieChart(
-                          PieChartData(
-                            sectionsSpace: 2,
-                            centerSpaceRadius: 30,
-                            sections: _getPieChartSections(expenses),
-                          ),
-                        ),
+                        child: _showPieChart
+                            ? PieChart(
+                                PieChartData(
+                                  sectionsSpace: 2,
+                                  centerSpaceRadius: 30,
+                                  sections: _getPieChartSections(expenses),
+                                ),
+                              )
+                            : BarChart(
+                                BarChartData(
+                                  alignment: BarChartAlignment.spaceAround,
+                                  maxY: _calculateCategoryTotals(expenses).values.isEmpty
+                                      ? 10
+                                      : (_calculateCategoryTotals(expenses).values.reduce((a, b) => a > b ? a : b) * 1.2),
+                                  barTouchData: BarTouchData(
+                                    enabled: true,
+                                    touchTooltipData: BarTouchTooltipData(
+                                      tooltipBgColor: Colors.transparent,
+                                      tooltipPadding: EdgeInsets.zero,
+                                      tooltipMargin: 0,
+                                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                        if (_touchedBarIndex == group.x) {
+                                          final value = rod.toY;
+                                          return BarTooltipItem(
+                                            '₹ ${value.toStringAsFixed(1)}',
+                                            TextStyle(
+                                              color: Theme.of(context).colorScheme.onSurface,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          );
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    touchCallback: (event, response) {
+                                      setState(() {
+                                        if (event.isInterestedForInteractions &&
+                                            response != null &&
+                                            response.spot != null) {
+                                          _touchedBarIndex = response.spot!.touchedBarGroupIndex;
+                                        } else {
+                                          _touchedBarIndex = null;
+                                        }
+                                      });
+                                    },
+                                  ),
+                                  titlesData: FlTitlesData(
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 40,
+                                        getTitlesWidget: (value, meta) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(right: 8.0),
+                                            child: Text(
+                                              value == 0
+                                                  ? '₹ 0'
+                                                  : value >= 1000
+                                                      ? '₹ ${(value ~/ 1000)}K'
+                                                      : '₹ ${value.toInt()}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                                color: Theme.of(context).colorScheme.onSurface,
+                                              ),
+                                              textAlign: TextAlign.right,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    rightTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    topTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        getTitlesWidget: (double value, TitleMeta meta) {
+                                          final categories = _calculateCategoryTotals(expenses).keys.toList();
+                                          if (value.toInt() >= 0 && value.toInt() < categories.length) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(top: 8.0),
+                                              child: Text(
+                                                categories[value.toInt()],
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Theme.of(context).colorScheme.onSurface,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                          return const SizedBox.shrink();
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(show: false),
+                                  barGroups: _getBarChartGroups(expenses),
+                                  gridData: FlGridData(show: false),
+                                ),
+                              ),
                       ),
                     ],
                   ),

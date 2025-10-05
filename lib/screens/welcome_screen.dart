@@ -22,7 +22,7 @@ class WelcomeScreen extends StatefulWidget {
 class _WelcomeScreenState extends State<WelcomeScreen> {
   late int _selectedYear;
   late List<int> _availableYears;
-  bool _showPieChart = true;
+  bool _showPieChart = false;
   int? _touchedBarIndex;
 
   @override
@@ -385,7 +385,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                       if (_touchedBarIndex == group.x) {
                                         final value = rod.toY;
                                         return BarTooltipItem(
-                                          value.toStringAsFixed(1),
+                                          '₹ ${value.toStringAsFixed(1)}',
                                           TextStyle(
                                             color: textColor,
                                             fontWeight: FontWeight.bold,
@@ -417,10 +417,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                           padding: const EdgeInsets.only(right: 8.0),
                                           child: Text(
                                             value == 0
-                                                ? '0'
+                                                ? '₹ 0'
                                                 : value >= 1000
-                                                    ? '${(value ~/ 1000)}K'
-                                                    : value.toInt().toString(),
+                                                    ? '₹ ${(value ~/ 1000)}K'
+                                                    : '₹ ${value.toInt()}',
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w500,

@@ -21,5 +21,22 @@ class Expense extends HiveObject {
     required this.amount,
     required this.date,
     required this.category,
-  });
+  }) {
+    validate();
+  }
+
+  void validate() {
+    if (title.trim().isEmpty) {
+      throw ArgumentError('Title cannot be empty');
+    }
+    if (amount <= 0) {
+      throw ArgumentError('Amount must be greater than 0');
+    }
+    if (date.isAfter(DateTime.now())) {
+      throw ArgumentError('Date cannot be in the future');
+    }
+    if (category.trim().isEmpty) {
+      throw ArgumentError('Category cannot be empty');
+    }
+  }
 }

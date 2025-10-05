@@ -2,25 +2,44 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models/expense.dart';
 import 'screens/welcome_screen.dart';
+import 'services/app_lifecycle_service.dart';
+import 'screens/authentication_screen.dart';
 import 'models/receivable_payable.dart';
 import 'models/tomorrow_task.dart'; // ✅ Import new TomorrowTask model
 import 'package:permission_handler/permission_handler.dart';
+import 'services/secure_storage_service.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Hive with encryption
   await Hive.initFlutter();
+  final encryptionKey = await SecureStorageService.getEncryptionKey();
 
   // Register adapters
   Hive.registerAdapter(ExpenseAdapter());
   Hive.registerAdapter(ReceivablePayableAdapter());
-  Hive.registerAdapter(TomorrowTaskAdapter()); // ✅ New adapter for TomorrowTask
+  Hive.registerAdapter(TomorrowTaskAdapter());
 
-  // Open boxes
-  await Hive.openBox<Expense>('expenses');
-  await Hive.openBox('settings');
-  await Hive.openBox<ReceivablePayable>('receivables_payables');
-  await Hive.openBox<TomorrowTask>('tomorrow_tasks'); // ✅ New box for Tomorrow Planner
+  // Open encrypted boxes
+  await Hive.openBox<Expense>(
+    'expenses',
+    encryptionCipher: HiveAesCipher(encryptionKey),
+  );
+  await Hive.openBox(
+    'settings',
+    encryptionCipher: HiveAesCipher(encryptionKey),
+  );
+  await Hive.openBox<ReceivablePayable>(
+    'receivables_payables',
+    encryptionCipher: HiveAesCipher(encryptionKey),
+  );
+  await Hive.openBox<TomorrowTask>(
+    'tomorrow_tasks',
+    encryptionCipher: HiveAesCipher(encryptionKey),
+  );
 
   // Ask for storage permission at startup (install/update)
   await _requestStoragePermission();
@@ -35,8 +54,46 @@ Future<void> _requestStoragePermission() async {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  late AppLifecycleService _lifecycleService;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _lifecycleService = AppLifecycleService(() {
+      // Navigate to authentication screen when locked
+      Navigator.of(context).pushReplacementNamed('/auth');
+    });
+    _lifecycleService.startTimer();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _lifecycleService.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App came back to foreground, check if we should lock
+      if (_lifecycleService.isLocked) {
+        Navigator.of(context).pushReplacementNamed('/auth');
+      }
+    } else if (state == AppLifecycleState.paused) {
+      // App went to background, start lock timer
+      _lifecycleService.startTimer();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,10 +142,13 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
       ),
-      home: const WelcomeScreen(),
+      home: const AuthenticationScreen(),
+      routes: {
+        '/home': (context) => const WelcomeScreen(),
+      },
       builder: (context, child) {
         return MediaQuery(
-          data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
           child: child!,
         );
       },

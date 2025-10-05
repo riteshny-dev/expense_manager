@@ -29,5 +29,22 @@ class ReceivablePayable extends HiveObject {
     this.fromWhom,
     this.date,
     this.paymentMode,
-  });
+  }) {
+    validate();
+  }
+
+  void validate() {
+    if (name.trim().isEmpty) {
+      throw ArgumentError('Name cannot be empty');
+    }
+    if (amount <= 0) {
+      throw ArgumentError('Amount must be greater than 0');
+    }
+    if (date != null && date!.isAfter(DateTime.now().add(const Duration(days: 365)))) {
+      throw ArgumentError('Date cannot be more than a year in the future');
+    }
+    if (paymentMode != null && paymentMode!.trim().isEmpty) {
+      throw ArgumentError('Payment mode cannot be empty if provided');
+    }
+  }
 }

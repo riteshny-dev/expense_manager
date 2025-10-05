@@ -266,11 +266,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       'September', 'October', 'November', 'December',
     ];
 
-    final backgroundColor = colorScheme.background;
+    final backgroundColor = colorScheme.surface;
     final cardColor = colorScheme.surface;
     final borderColor = colorScheme.primary.withOpacity(0.3);
     final buttonColor = colorScheme.primaryContainer;
-    final textColor = colorScheme.onBackground;
+    final textColor = colorScheme.onSurface;
     final titleStyle = theme.textTheme.titleMedium?.copyWith(
       fontWeight: FontWeight.bold,
       fontSize: screenWidth * 0.05,

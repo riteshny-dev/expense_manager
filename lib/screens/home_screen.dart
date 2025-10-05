@@ -288,11 +288,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _submitData,
-                  child: const Text('Add Expense'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
+                  child: const Text('Add Expense'),
                 ),
               ),
             ],
@@ -411,11 +411,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     _showSnackbar('Expense updated successfully!');
                     setState(() {});
                   },
-                  child: const Text('Save Changes'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
+                  child: const Text('Save Changes'),
                 ),
               ),
             ],
@@ -515,18 +515,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: !_isBudgetSet ? _setBudget : null,
-                  child: const Text('Set'),
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
+                  child: const Text('Set'),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: _isBudgetSet ? _editBudgetPrompt : null,
-                  child: const Text('Edit'),
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
+                  child: const Text('Edit'),
                 ),
               ],
             ),
@@ -626,7 +626,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
     );
   }
 }

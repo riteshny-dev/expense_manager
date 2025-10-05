@@ -298,7 +298,7 @@ class _ReceivablePayableScreenState extends State<ReceivablePayableScreen> {
         foregroundColor: colorScheme.onPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
     );
   }
 }

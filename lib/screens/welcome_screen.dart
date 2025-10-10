@@ -11,6 +11,7 @@ import '../models/receivable_payable.dart';
 import 'home_screen.dart';
 import 'receivable_payable_screen.dart';
 import 'tomorrow_screen.dart'; // <-- Make sure this import exists
+import '../services/file_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -173,62 +174,81 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Future<void> _exportYearlyDataToPdf() async {
-    final expenseBox = Hive.box<Expense>('expenses');
-    final expenses = expenseBox.values
-        .where((e) => e.date.year == _selectedYear)
-        .toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
+    try {
+      final expenseBox = Hive.box<Expense>('expenses');
+      final expenses = expenseBox.values
+          .where((e) => e.date.year == _selectedYear)
+          .toList()
+        ..sort((a, b) => a.date.compareTo(b.date));
 
-    final pdf = pw.Document();
+      final yearlyTotals = _calculateYearlyTotals(expenseBox.values.toList());
+      final pdf = pw.Document();
 
-    pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text('Expense Report - $_selectedYear',
-                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 16),
-              pw.Table.fromTextArray(
-                headers: ['Date', 'Title', 'Category', 'Amount'],
-                data: expenses
-                    .map((e) => [
-                          "${e.date.day.toString().padLeft(2, '0')}-${e.date.month.toString().padLeft(2, '0')}-${e.date.year}",
-                          e.title,
-                          e.category,
-                          "₹${e.amount.toStringAsFixed(2)}"
-                        ])
-                    .toList(),
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                cellAlignment: pw.Alignment.centerLeft,
-                cellStyle: const pw.TextStyle(fontSize: 10),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.teal100),
-                border: pw.TableBorder.all(color: PdfColors.grey),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    Directory? dir;
-    if (Platform.isAndroid) {
-      dir = await getExternalStorageDirectory();
-    } else {
-      dir = await getDownloadsDirectory();
-    }
-    final file = File("${dir!.path}/expense_report_$_selectedYear.pdf");
-    await file.writeAsBytes(await pdf.save());
-
-    Share.shareXFiles([XFile(file.path)], text: 'Expense Report $_selectedYear');
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('PDF exported: ${file.path}'),
+      pdf.addPage(
+        pw.Page(
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Expense Report - $_selectedYear',
+                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+                ),
+                pw.SizedBox(height: 16),
+                pw.Header(level: 1, text: 'Category-wise Summary'),
+                pw.Table.fromTextArray(
+                  headers: ['Category', 'Total Amount (INR)'],
+                  data: yearlyTotals.entries
+                      .map((e) => [e.key, 'INR ${e.value.toStringAsFixed(2)}'])
+                      .toList(),
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  cellAlignment: pw.Alignment.centerLeft,
+                ),
+                pw.SizedBox(height: 20),
+                pw.Header(level: 1, text: 'Detailed Expenses'),
+                pw.Table.fromTextArray(
+                  headers: ['Date', 'Title', 'Category', 'Amount'],
+                  data: expenses
+                      .map((e) => [
+                            "${e.date.day.toString().padLeft(2, '0')}-${e.date.month.toString().padLeft(2, '0')}-${e.date.year}",
+                            e.title,
+                            e.category,
+                            "INR ${e.amount.toStringAsFixed(2)}"
+                          ])
+                      .toList(),
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  cellStyle: const pw.TextStyle(fontSize: 10),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                  border: pw.TableBorder.all(color: PdfColors.grey),
+                ),
+              ],
+            );
+          },
         ),
       );
+
+      final downloadPath = await FileService.getDownloadPath();
+      if (downloadPath == null) {
+        throw Exception('Could not access download directory');
+      }
+
+      final file = File("$downloadPath/expense_report_$_selectedYear.pdf");
+      await file.writeAsBytes(await pdf.save());
+      
+      await FileService.sharePdfFile(
+        file.path, 
+        'Expense Report $_selectedYear'
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting PDF: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
